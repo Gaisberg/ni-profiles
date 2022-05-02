@@ -3,101 +3,129 @@
 -- Version: 12340
 -- Author: Gaisberg
 --------------------------------
-
 local ni = ...
 local profile = {}
 profile.name = "Beast Mastery"
-load_functions = ni.backend.LoadFile(ni.backend.GetBaseFolder().."addon\\Rotations\\Misc\\helpers.lua")
+local load_functions = ni.backend.LoadFile(ni.backend.GetBaseFolder() .. "addon\\Rotations\\Misc\\helpers.lua")
 load_functions(ni, profile)
 
-local items = {
-	settingsfile = "Beast Mastery.json",
-	{
-			type = "title",
-			text = "|cffb4eb34 Beast Mastery - |cff888888 for 3.3.5a"
-	},
-	{
-			type = "entry",
-			text = "Debug",
-			tooltip = "Print debug messages",
-			enabled = false,
-			key = "debug"
-	},
-	{
-			type = "entry",
-			text = "\124T" .. select(3, GetSpellInfo(8617)) .. ":20:20\124t |cffFFFFFF" .. GetSpellInfo(8617) .. "|r",
-			tooltip = "Auto skin",
-			enabled = true,
-			key = "skinning"
-	},
-	{
-			type = "entry",
-			text = "\124T" .. select(10, GetItemInfo(21841)) .. ":26:26\124t Looting",
-			tooltip = "Auto loot",
-			enabled = true,
-			key = "looting"
-	},
-	{
-			type = "separator"
-	},
-	{
-			type = "title",
-			text = "Class Settings"
-	},
-	{
-			type = "entry",
-			text = "\124T" .. select(3, GetSpellInfo(34074)) .. ":26:26\124t Aspect Management",
-			tooltip = "Will handle aspect changes",
-			enabled = true,
-			key = "aspect"
-	},
-	{
-			type = "separator"
-	},
-	{
-			type = "title",
-			text = "Pet Mode"
-	},
-	{
-			type = "dropdown",
-			menu = {
-					{
-							text = "Leveling",
-							selected = true,
-							key = "leveling"
-					},
-					{
-							text = "Assist",
-							selected = false,
-							key = "assist"
-					}
-			}
-	},
-	{
-			type = "entry",
-			text = "\124T" .. select(10, GetItemInfo(2672)) .. ":26:26\124t Pet Food",
-			tooltip = "Food for pet to use",
-			value = "",
-			key = "petfood"
-	}
+local ui = {
+    settingsfile = "Beast Mastery.json",
+    {
+        type = "label",
+        text = "Beast Mastery - for 3.3.5a"
+    },
+    {
+        type = "checkbox",
+        text = "Debug",
+        enabled = false,
+        key = "debug"
+    },
+    {
+        type = "checkbox",
+        text = "Auto Skinning",
+        enabled = false,
+        key = "skinning"
+    },
+    {
+        type = "checkbox",
+        text = "Auto Looting",
+        enabled = false,
+        key = "looting"
+    },
+    {
+        type = "separator"
+    },
+    {
+        type = "label",
+        text = "Class Settings"
+    },
+    {
+        type = "checkbox",
+        text = "Auto Aspect Management",
+        enabled = true,
+        key = "aspect"
+    },
+    {
+        type = "separator"
+    },
+    {
+        type = "label",
+        text = "Pet Settings"
+    },
+    {
+        type = "input",
+        text = "Food ID",
+        value = "",
+        key = "petfood"
+    },
+    {
+        type = "combobox",
+        text = "Attacking Mode",
+        key = "pet_mode",
+        selected = "Leveling",
+        menu = {
+            {
+                text = "Leveling",
+                key = "leveling"
+            },
+            {
+                text = "Assist",
+                key = "assist"
+            }
+        }
+    }
 }
 
-local spells = {
-    skinning = GetSpellInfo(8617),
-    autoshot = GetSpellInfo(75),
-    raptorstrike = GetSpellInfo(2973),
-    serpentsting = GetSpellInfo(1978),
-    aspectofmonkey = GetSpellInfo(13163),
-    aspectofhawk = GetSpellInfo(13165),
-    aspectofviper = GetSpellInfo(34074),
-    arcaneshot = GetSpellInfo(3044),
-    huntersmark = GetSpellInfo(1130),
-    mendpet = GetSpellInfo(136),
-    feedpet = GetSpellInfo(6991),
-    multishot = GetSpellInfo(2643),
-    autoattack = GetSpellInfo(6603),
-    mongoosebite = GetSpellInfo(1495),
-		explosivetrap = GetSpellInfo(13813)
+profile.spells = {
+    skinning = {
+        name = select(1, ni.spell.info(8617))
+    },
+    autoshot = {
+        name = select(1, ni.spell.info(75))
+    },
+    raptorstrike = {
+        name = select(1, ni.spell.info(2973))
+    },
+    serpentsting = {
+        name = select(1, ni.spell.info(1978))
+    },
+    aspectofmonkey = {
+        name = select(1, ni.spell.info(13163))
+    },
+    aspectofhawk = {
+        name = select(1, ni.spell.info(13165))
+    },
+    aspectofdragonhawk = {
+        name = select(1, ni.spell.info(61847))
+    },
+    aspectofviper = {
+        name = select(1, ni.spell.info(34074))
+    },
+    arcaneshot = {
+        name = select(1, ni.spell.info(3044))
+    },
+    huntersmark = {
+        name = select(1, ni.spell.info(1130))
+    },
+    mendpet = {
+        name = select(1, ni.spell.info(136))
+    },
+    feedpet = {
+        name = select(1, ni.spell.info(6991))
+    },
+    multishot = {
+        name = select(1, ni.spell.info(2643))
+    },
+    autoattack = {
+        name = select(1, ni.spell.info(6603))
+    },
+    mongoosebite = {
+        name = select(1, ni.spell.info(1495))
+    },
+    explosivetrap = {
+        name = select(1, ni.spell.info(13813))
+    }
 }
 
 local queue = {
@@ -110,13 +138,12 @@ local queue = {
     "Pet Logic",
     "Aspect Management",
     "Auto Attack",
-		"Explosive Trap",
+    "Explosive Trap",
     "Multi Shot",
     "Serpent Sting",
     "Arcane Shot",
-		"Raptor Strike",
-    "Mongoose Bite",
-    "Hunters Mark",
+    "Raptor Strike",
+    "Mongoose Bite"
 }
 
 local abilities = {
@@ -124,56 +151,47 @@ local abilities = {
         profile.on_tick()
     end,
     ["Looting"] = function()
-        if select(2, profile.get_setting("looting", items)) then
-            local freeslots = 0
-            if not profile.incombat and not ni.player.islooting() and not ni.player.ismoving() then
-                for k, v in pairs(profile.lootables) do
-                    for i = 0, 3 do
-                        freeslots = freeslots + #GetContainerFreeSlots(i)
-                    end
-                    if freeslots ~= 0 and ni.player.distance(v.guid) < 2 then
-                        if profile.cast(ni.player.interact, v.guid) then
-                            if profile.debug then
-                                print("[debug] Looting")
-                            end
-                            return true
-                        end
-                    end
-                end
-            end
-        end
+        --   if profile.get_setting("looting") then
+        --       local freeslots = 0
+        --       if not profile.incombat and not ni.player.is_looting() and not ni.player.is_moving() then
+        --           for k, v in ni.table.pairs(profile.lootables) do
+        --               for i = 0, 3 do
+        --                   freeslots = freeslots + #GetContainerFreeSlots(i)
+        --               end
+        --               if freeslots ~= 0 and ni.player.distance(v) < 2 then
+        --                   if profile.cast(ni.player.interact, v) then
+        --                       return true
+        --                   end
+        --               end
+        --           end
+        --       end
+        --   end
     end,
     ["Skinning"] = function()
-        if select(2, profile.get_setting("skinning", items)) then
-            if not profile.incombat and not ni.player.ismoving() and not ni.player.ischanneling() then
-                for k, v in pairs(profile.skinnables) do
-                    if ni.player.distance(v.guid) < 3 then
-                        if ni.spell.available(spells.skinning) then
-                            if profile.cast(ni.spell.cast, spells.skinning, v.guid) then
-                                if profile.debug then
-                                    print("[debug] Skinning")
-                                end
-                                return true
-                            end
-                        end
-                    end
-                end
-            end
-        end
+        --   if profile.get_setting("skinning") then
+        --       if not profile.incombat and not ni.player.is_moving() and not ni.player.is_channeling() then
+        --           for k, v in ni.table.pairs(profile.skinnables) do
+        --               if ni.player.distance(v) < 3 then
+        --                   if ni.spell.available(profile.spells.skinning.name) then
+        --                       if profile.cast(ni.spell.cast, profile.spells.skinning.name, v) then
+        --                           return true
+        --                       end
+        --                   end
+        --               end
+        --           end
+        --       end
+        --   end
     end,
     ["Feed Pet"] = function()
-        if not profile.incombat and ni.unit.exists("pet") and ni.spell.available(spells.feedpet) and
-            ni.spell.valid("pet", 6991, false, true, true) then
-            local happiness = GetPetHappiness()
-            local foodId = profile.get_setting("petfood", items)
-            if happiness ~= 3 and foodId ~= 0 and ni.player.hasitem(foodId) and not ni.unit.buff("pet", 1539) then
-                local name = GetItemInfo(foodId)
+        if not profile.incombat and ni.unit.exists("pet") and ni.spell.available(profile.spells.feedpet.name) and
+            ni.spell.valid(6991, "pet", false, true, true) then
+            local happiness = ni.pet.happiness()
+            local foodId = profile.get_setting("petfood")
+            if happiness ~= 3 and foodId ~= 0 and ni.item.is_present(foodId) and not ni.unit.buff("pet", 1539) then
+                local name = ni.item.info(foodId)
                 if (name ~= nil) then
-                    if profile.cast(ni.spell.cast, spells.feedpet) then
-                        if profile.cast(ni.player.runtext, string.format("/use %s", name)) then
-                            if profile.debug then
-                                print("[debug] Feeding pet")
-                            end
+                    if profile.cast(ni.spell.cast, profile.spells.feedpet) then
+                        if profile.cast(ni.client.run_text, string.format("/use %s", name)) then
                         end
                     end
                 end
@@ -181,111 +199,93 @@ local abilities = {
         end
     end,
     ["Mend Pet"] = function()
-        if ni.unit.hp("pet") < 70 and not ni.unit.buff("pet", spells.mendpet) and
-            not UnitIsDeadOrGhost("pet") and ni.spell.available(spells.mendpet) then
-            if profile.cast(ni.spell.cast, spells.mendpet) then
-                if profile.debug then
-                    print("[debug] Casting " .. spells.mendpet)
-                end
+        if ni.unit.hp("pet") < 70 and not ni.unit.buff("pet", profile.spells.mendpet.name) and
+            not ni.unit.is_dead_or_ghost("pet") and ni.spell.available(profile.spells.mendpet.name) then
+            if profile.cast(ni.spell.cast, profile.spells.mendpet) then
                 return true
             end
         end
     end,
     ["Pause Rotation"] = function()
-        if IsMounted() or UnitIsDeadOrGhost("player") or UnitUsingVehicle("player") or UnitInVehicle("player") or
-            not profile.incombat or ni.player.ischanneling() or ni.player.iscasting() 
-						or ni.player.buff("drink") or ni.player.buff("food") then
+        if ni.player.mounted() or ni.player.is_dead_or_ghost() or not profile.incombat or ni.player.is_channeling() or
+            ni.player.is_casting() or ni.player.buff("drink") or ni.player.buff("food") then
             return true;
         end
     end,
     ["Pet Logic"] = function()
         if ni.unit.exists("pet") then
-            if profile.get_setting("assist", items) and not UnitIsDeadOrGhost(profile.target.guid) and ni.objects["pet"]:target() ~=
-                ni.objects["player"]:target() then
-                profile.cast(PetAttack, ni.objects["player"]:target())
+            if profile.get_setting("pet_mode") == "Assist" and not ni.unit.is_dead_or_ghost(profile.target) and
+                ni.unit.target("pet") ~= ni.unit.target("player") then
+                profile.cast(ni.pet.attack, profile.target)
+                return true
             end
-            if profile.get_setting("leveling", items) then
-                if ni.objects["pet"].guid == ni.objects["pettarget"]:target() or not profile.incombat or
+            if profile.get_setting("pet_mode") == "Leveling" and not profile.inparty then
+                if ni.pet.guid() == ni.unit.guid(ni.unit.target("pettarget")) or not profile.incombat or
                     not ni.unit.exists("pettarget") then
                     profile.pet.attacking = false
                 end
                 if not profile.pet.attacking then
-                    for k, v in pairs(profile.enemies) do
-                        if v:target() == ni.objects["pet"].guid or v:target() == ni.objects["player"].guid then
-                            if not ni.unit.exists(ni.objects["pet"]:target()) then
-                                profile.cast(PetAttack, profile.target)
-                                profile.pet.attacking = true
-                                break
+                    for k, v in ni.table.pairs(profile.enemies) do
+                        if ni.unit.target(v) == ni.pet.guid() or ni.unit.target(v) == ni.unit.guid("player") then
+                            if not ni.unit.exists(ni.unit.target("pettarget")) then
+                                if profile.cast(ni.pet.attack, profile.target) then
+                                    profile.pet.attacking = true
+                                    return true
+                                end
                             end
-                            if not profile.pet.attacking and ni.unit.threat(ni.objects["pet"].guid, v.guid) < 3 then
-                                profile.cast(PetAttack, v.guid)
-                                profile.pet.attacking = true
-                                break
+                            if not profile.pet.attacking and ni.unit.threat(ni.pet.guid(), v) < 3 then
+                                if profile.cast(ni.pet.attack, v) then
+                                    profile.pet.attacking = true
+                                    return true
+                                end
                             end
                         end
                     end
                 end
-                -- profile.cast(PetAttack, ni.objects["player"]:target())
             end
         end
     end,
     ["Auto Attack"] = function()
-        ni.player.target(profile.target.guid)
-        if ni.unit.exists("target") and UnitCanAttack("player", "target") and not UnitIsDeadOrGhost("target") and
-            UnitAffectingCombat("player") and not IsCurrentSpell(spells.autoshot) and
-            not ni.player.ismoving() and not ni.player.inmelee(profile.target.guid) then
-            if profile.cast(ni.spell.cast, spells.autoshot, profile.target.guid) then
-                if profile.debug then
-                    print("[debug] Casting " .. spells.autoshot)
-                end
+        if ni.unit.exists(profile.target) and not ni.spell.is_current(profile.spells.autoshot.name) and
+            not ni.player.is_moving() and not ni.player.in_melee(profile.target) and
+            ni.spell.valid(profile.spells.autoshot.name, profile.target, true, true) then
+            if profile.cast(StartAttack, profile.target) then
                 return true
             end
         end
     end,
     ["Explosive Trap"] = function()
-        if ni.spell.available(spells.explosivetrap) and
-            ni.player.inmelee(profile.target.guid) and ni.player.isfacing(profile.target.guid) and
-            #ni.unit.enemiesinrange(profile.target.guid, 10) > 1 then
-            if profile.cast(ni.spell.cast, spells.explosivetrap) then
-                if profile.debug then
-                    print("[debug] Casting " .. spells.explosivetrap)
-                end
+        if ni.spell.available(profile.spells.explosivetrap.name) and ni.player.in_melee(profile.target) and
+            ni.player.is_facing(profile.target) and #ni.unit.enemies_in_range(profile.target, 10) > 1 then
+            if profile.cast(ni.spell.cast, profile.spells.explosivetrap) then
+                return true
             end
         end
     end,
     ["Raptor Strike"] = function()
-        if ni.spell.available(spells.raptorstrike) and
-            ni.spell.valid(profile.target.guid, spells.raptorstrike) and
-            ni.player.inmelee(profile.target.guid) and not IsCurrentSpell(spells.raptorstrike) then
-            if profile.cast(ni.spell.cast, spells.raptorstrike, profile.target.guid) then
-                if profile.debug then
-                    print("[debug] Casting " .. spells.raptorstrike)
-                end
+        if ni.spell.available(profile.spells.raptorstrike.name) and
+            ni.spell.valid(profile.spells.raptorstrike.name, profile.target, true) and
+            ni.player.in_melee(profile.target) and not ni.spell.is_current(profile.spells.raptorstrike.name) then
+            if profile.cast(ni.spell.cast, profile.spells.raptorstrike, profile.target) then
                 return true
             end
         end
     end,
     ["Mongoose Bite"] = function()
-        if ni.spell.available(spells.mongoosebite) and
-            ni.spell.valid(profile.target.guid, spells.mongoosebite) and
-            ni.player.inmelee(profile.target.guid) and not IsCurrentSpell(spells.mongoosebite) then
-            if profile.cast(ni.spell.cast, spells.mongoosebite, profile.target.guid) then
-                if profile.debug then
-                    print("[debug] Casting " .. spells.mongoosebite)
-                end
+        if ni.spell.available(profile.spells.mongoosebite.name) and
+            ni.spell.valid(profile.spells.mongoosebite.name, profile.target, true) and
+            ni.player.in_melee(profile.target) then
+            if profile.cast(ni.spell.cast, profile.spells.mongoosebite, profile.target) then
                 return true
             end
         end
     end,
     ["Serpent Sting"] = function()
-        for k, v in pairs(profile.enemies) do
-            if ni.spell.available(spells.serpentsting) and
-                ni.spell.valid(v.guid, spells.serpentsting, true, true) then
-                if not ni.unit.debuff(v.guid, spells.serpentsting) and ni.unit.ttd(v.guid) > 5 then
-                    if profile.cast(ni.spell.cast, spells.serpentsting, v.guid) then
-                        if profile.debug then
-                            print("[debug] Casting " .. spells.serpentsting)
-                        end
+        for k, v in ni.table.pairs(profile.enemies) do
+            if ni.spell.available(profile.spells.serpentsting.name) and
+                ni.spell.valid(profile.spells.serpentsting.name, v, true, true) then
+                if not ni.unit.debuff(v, profile.spells.serpentsting.name) and ni.unit.hp(v) > 15 then
+                    if profile.cast(ni.spell.cast, profile.spells.serpentsting, v) then
                         return true
                     end
                 end
@@ -293,35 +293,36 @@ local abilities = {
         end
     end,
     ["Aspect Management"] = function()
-        if select(2, profile.get_setting("aspect", items)) then
-            if ni.spell.available(spells.aspectofmonkey) then
-                if UnitLevel("player") < 10 and not ni.player.buff(spells.aspectofmonkey) then
-                    if profile.cast(ni.spell.cast, spells.aspectofmonkey) then
-                        if profile.debug then
-                            print("[debug] Casting " .. spells.aspectofmonkey)
-                        end
+        if profile.get_setting("aspect") then
+            if ni.spell.available(profile.spells.aspectofmonkey.name) then
+                if ni.player.level() < 10 and not ni.player.buff(profile.spells.aspectofmonkey.name) then
+                    if profile.cast(ni.spell.cast, profile.spells.aspectofmonkey) then
                         return true
                     end
                 end
             end
-            if ni.spell.available(spells.aspectofhawk) then
-                if not (ni.player.buff(spells.aspectofhawk) or
-                    ni.player.buff(spells.aspectofviper)) or
-                    (ni.player.buff(spells.aspectofviper) and ni.player.power() > 70) then
-                    if profile.cast(ni.spell.cast, spells.aspectofhawk) then
-                        if profile.debug then
-                            print("[debug] Casting " .. spells.aspectofhawk)
-                        end
-                        return true
-                    end
+            --    if ni.spell.available(profile.spells.aspectofdragonhawk) then
+            --       if not (ni.player.buff(profile.spells.aspectofdragonhawk) or ni.player.buff(profile.spells.aspectofviper)) or
+            --           (ni.player.buff(profile.spells.aspectofviper) and ni.player.power() > 70) then
+            --           if profile.cast(ni.spell.cast, profile.spells.aspectofdragonhawk) then
+            --               if profile.debug then
+            --                   print("[debug] Casting " .. profile.spells.aspectofdragonhawk)
+            --               end
+            --               return true
+            --           end
+            --       end
+            --   end
+            if ni.spell.available(profile.spells.aspectofhawk.name) and
+                not (ni.player.buff(profile.spells.aspectofhawk.name) or
+                    ni.player.buff(profile.spells.aspectofviper.name)) or
+                (ni.player.buff(profile.spells.aspectofviper.name) and ni.player.power_percent() > 70) then
+                if profile.cast(ni.spell.cast, profile.spells.aspectofhawk) then
+                    return true
                 end
             end
-            if ni.spell.available(spells.aspectofviper) then
-                if not ni.player.buff(spells.aspectofviper) and ni.player.power() < 5 then
-                    if profile.cast(ni.spell.cast, spells.aspectofviper) then
-                        if profile.debug then
-                            print("[debug] Casting " .. spells.aspectofviper)
-                        end
+            if ni.spell.available(profile.spells.aspectofviper.name) then
+                if not ni.player.buff(profile.spells.aspectofviper.name) and ni.player.power_percent() < 10 then
+                    if profile.cast(ni.spell.cast, profile.spells.aspectofviper) then
                         return true
                     end
                 end
@@ -329,53 +330,22 @@ local abilities = {
         end
     end,
     ["Arcane Shot"] = function()
-        if ni.spell.available(spells.arcaneshot) and
-            ni.spell.valid(profile.target.guid, spells.arcaneshot, true, true) then
-            if profile.cast(ni.spell.cast, spells.arcaneshot, profile.target.guid) then
-                if profile.debug then
-                    print("[debug] Casting " .. spells.arcaneshot)
-                end
+        if ni.spell.available(profile.spells.arcaneshot.name) and
+            ni.spell.valid(profile.spells.arcaneshot.name, profile.target, true, true) then
+            if profile.cast(ni.spell.cast, profile.spells.arcaneshot, profile.target) then
                 return true
             end
         end
     end,
-    ["Hunters Mark"] = function()
-        if ni.spell.available(spells.huntersmark) and
-            ni.spell.valid(profile.target, spells.huntersmark, true, true) then
-            if ni.unit.isboss(profile.target) and not ni.unit.debuff(profile.target, spells.huntersmark) then
-                if profile.cast(ni.spell.cast, spells.huntersmark, profile.target.guid) then
-                    if profile.debug then
-                        print("[debug] Casting " .. spells.huntersmark)
-                    end
-                    return true
-                end
-            end
-        end
-    end,
     ["Multi Shot"] = function()
-        if #ni.unit.enemiesinrange(profile.target.guid, 10) > 1 then
-            if ni.spell.available(spells.multishot) and
-                ni.spell.valid(profile.target.guid, spells.multishot, true, true) and
-                not IsCurrentSpell(spells.multishot) then
-                if profile.cast(ni.spell.cast, spells.multishot, profile.target.guid) then
-                    if profile.debug then
-                        print("[debug] Casting " .. spells.multishot)
-                    end
-                    return true
-                end
+        if ni.spell.available(profile.spells.multishot.name) and
+            ni.spell.valid(profile.spells.multishot.name, profile.target, true, true) and
+            not ni.spell.is_current(profile.spells.multishot.name) and not ni.player.is_moving() then
+            if profile.cast(ni.spell.cast, profile.spells.multishot, profile.target) then
+                return true
             end
         end
     end
 }
 
-local function on_load()
-    ni.GUI.AddFrame(profile.name, items);
-    ni.combatlog.registerhandler(profile.name, profile.events);
-end
-
-local function on_unload()
-    ni.GUI.DestroyFrame(profile.name);
-    ni.combatlog.unregisterhandler(profile.name);
-end
-
-ni.bootstrap.profile(profile.name, queue, abilities, on_load, on_unload)
+ni.profile.new(profile.name, queue, abilities, ui, profile.events)
