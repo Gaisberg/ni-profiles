@@ -142,7 +142,9 @@ local abilities = {
                 local name = ni.item.info(foodId)
                 if (name ~= nil) then
                     if profile.cast(ni.spell.cast, profile.spells.feedpet, "pet") then
-                        if profile.cast(ni.client.run_text, string.format("/use %s", name)) then return true end
+                        if profile.cast(ni.client.run_text, string.format("/use %s", name)) then
+                            return true
+                        end
                     end
                 end
             end
@@ -165,9 +167,8 @@ local abilities = {
                 profile.pet.attacking = false
             end
             if profile.get_setting("pet_mode") == "Assist" and ni.unit.target("pet") ~= ni.unit.target("player") and
-                not ni.unit.is_dead_or_ghost("target") and not profile.pet.attacking and
-                not ni.unit.is_silenced("pet") and not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and
-                not ni.unit.is_fleeing("pet") then
+                not ni.unit.is_dead_or_ghost("target") and not profile.pet.attacking and not ni.unit.is_silenced("pet") and
+                not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and not ni.unit.is_fleeing("pet") then
                 profile.cast(ni.pet.attack, "target")
                 profile.pet.attacking = true
                 return true
@@ -176,21 +177,12 @@ local abilities = {
                 if not profile.pet.attacking then
                     for k, v in ni.table.pairs(profile.enemies) do
                         if ni.unit.guid(ni.unit.target(v)) ~= ni.pet.guid() and ni.unit.target(v) == "player" or
-                            ni.unit.guid(ni.unit.target(v)) == ni.unit.guid("player") then
-                            --  if not ni.unit.exists(ni.unit.target("pettarget")) then
+                            ni.unit.guid(ni.unit.target(v)) == ni.unit.guid("player") or
+                            ni.unit.threat(ni.pet.guid(), v) < 3 and ni.unit.target(v) == "player" then
                             if profile.cast(ni.pet.attack, v) then
                                 profile.pet.attacking = true
-                              --   break
                                 return true
                             end
-                            --  end
-                           --  if not profile.pet.attacking and ni.unit.threat(ni.pet.guid(), v) < 3 then
-                           --      if profile.cast(ni.pet.attack, v) then
-                           --          profile.pet.attacking = true
-                           --          break
-                           --          -- return true
-                           --      end
-                           --  end
                         end
                     end
                 end
@@ -208,22 +200,22 @@ local abilities = {
         end
     end,
     ["Explosive Trap"] = function()
-        if ni.player.in_melee("target") and ni.player.is_facing("target") and
-            #ni.unit.enemies_in_range("target", 10) > 1 then
+        if ni.player.in_melee("target") and ni.player.is_facing("target") and #ni.unit.enemies_in_range("target", 10) >
+            1 then
             if profile.cast(ni.spell.cast, profile.spells.explosivetrap) then
                 return true
             end
         end
     end,
     ["Raptor Strike"] = function()
-        if not ni.spell.is_current(profile.spells.raptorstrike) and ni.player.in_melee("target") then
+        if not ni.spell.is_current(profile.spells.raptorstrike) and ni.player.distance("target") < 3 then
             if profile.cast(ni.spell.cast, profile.spells.raptorstrike, "target") then
                 return true
             end
         end
     end,
     ["Mongoose Bite"] = function()
-        if ni.player.in_melee("target") then
+        if ni.player.distance("target") < 3 then
             if profile.cast(ni.spell.cast, profile.spells.mongoosebite, "target") then
                 return true
             end
