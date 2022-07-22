@@ -9,6 +9,7 @@ profile.inparty = false
 profile.tank = nil
 profile.target = nil
 profile.pet.attacking = false
+profile.casting_history = nil
 
 function profile.dump(o)
     if type(o) == 'table' then
@@ -47,7 +48,7 @@ function profile.cast(func, ...)
             return false
         end
 
-        if target and spell ~= profile.spells.skinning then
+        if target and spell ~= ni.spells.skinning then
             if not ni.spell.valid(spell, target, true, true) then
                 return false
             end
@@ -55,11 +56,11 @@ function profile.cast(func, ...)
 
         func(spell, target)
         if profile.debug then
-            if target then
-                profile.print("[DEBUG] Casting " .. spell .. " on " .. ni.unit.name(target))
-            else
-                profile.print("[DEBUG] Casting " .. spell)
-            end
+            -- if target then
+            --     profile.casting_history:AddMessage("[DEBUG] Casting " .. spell .. " on " .. ni.unit.name(target))
+            -- else
+            --     profile.casting_history:AddMessage("[DEBUG] Casting " .. spell)
+            -- end
         end
         return true
     elseif func == ni.pet.attack then
@@ -68,7 +69,7 @@ function profile.cast(func, ...)
             -- profile.print("[DEBUG] Pet is attacking " .. ni.unit.name(arg1))
         end
         return true
-    elseif func == StartAttack then
+    elseif func == ni.player.start_attack then
         func(arg1)
         if profile.debug then
             profile.print("[DEBUG] Auto attacking " .. ni.unit.name(arg1))
@@ -82,11 +83,11 @@ end
 
 function profile.events(event, ...)
     local arg1, arg2 = ...
-    if event == "PLAYER_REGEN_DISABLED" then
-        profile.incombat = true;
-    elseif event == "PLAYER_REGEN_ENABLED" then
-        profile.incombat = false;
-    elseif event == "UNIT_SPELLCAST_SENT" and arg1 == "player" then
+    --  if event == "PLAYER_REGEN_DISABLED" then
+    --      profile.incombat = true;
+    --  elseif event == "PLAYER_REGEN_ENABLED" then
+    --      profile.incombat = false;
+    if event == "UNIT_SPELLCAST_SENT" and arg1 == "player" then
         for k, v in ni.table.pairs(profile.spells) do
             if v == arg2 then
                 ni.table.insert(profile.blocked_spells, {
@@ -97,34 +98,41 @@ function profile.events(event, ...)
             end
         end
     end
+    if event == "PET_ATTACK_START" then
+        profile.pet.attacking = true
+    end
+    if event == "PET_ATTACK_STOP" then
+        profile.pet.attacking = false
+    end
+
+   --  if event == "PLAYER_ENTERING_WORLD" then
+   --    --  Scan for our "PM" window
+   --    for i = 3, NUM_CHAT_WINDOWS do
+   --       --  Fix the ChatFrame.oldAlpha problem here
+   --       local cframe = _G["ChatFrame" .. i];
+   --       cframe.oldAlpha = cframe.oldAlpha or 0;
+
+   --       --  Check if this window is named "PM" and only has the two whisper types registered (order of the function returns doesn't matter)
+   --       if GetChatWindowInfo(i) == "History" then
+   --             --      If so, stop here
+   --             return;
+   --       end
+   --    end
+
+   --    local HistoryFrame = FCF_OpenNewWindow("History"); --        There's no "PM" window, so we'll create one
+   --    ChatFrame_RemoveAllMessageGroups(HistoryFrame); --        Remove the default group registrations
+   --    profile.casting_history = HistoryFrame
+   -- end
 end
 
 function profile.on_tick()
     ni.objects.update()
-    profile.debug = false
-    if profile.get_setting("debug") then
-        profile.debug = true
-    end
+    profile.debug = profile.get_setting("debug") or false
 
-    profile.enemies = {}
-    profile.enemies5y = {}
     profile.skinnables = {}
     profile.lootables = {}
-    for k, v in ni.table.pairs(ni.objects) do
-        if ni.unit.affecting_combat(k) and ni.unit.can_attack("player", k) and not ni.unit.is_dead_or_ghost(k) then
-            ni.table.insert(profile.enemies, v.guid)
-            if ni.player.distance(v.guid) < 5 then
-                ni.table.insert(profile.enemies5y, v.guid)
-            end
-        end
-        if ni.unit.is_skinnable(k) then
-            ni.table.insert(profile.skinnables, v.guid)
-        end
-        if ni.unit.is_lootable(k) then
-            ni.table.insert(profile.lootables, v.guid)
-        end
-    end
 
+    profile.incombat = ni.player.is_in_combat()
     profile.inparty = false
     if ni.group.size() > 0 then
         profile.inparty = true
@@ -148,9 +156,9 @@ end
 function profile.looting()
     if profile.get_setting("looting") then
         if not profile.incombat and not ni.player.is_looting() and not ni.player.is_moving() then
-            for k, v in ni.table.pairs(profile.lootables) do
-                if ni.player.distance(v) < 3 then
-                    return profile.cast(ni.player.interact, v)
+            for k in ni.table.pairs(ni.player.lootable_in_range(2)) do
+                if profile.cast(ni.player.interact, k) then
+                    return true
                 end
             end
         end
@@ -160,11 +168,9 @@ end
 function profile.skinning()
     if profile.get_setting("skinning") then
         if not profile.incombat and not ni.player.is_moving() and not ni.player.is_casting() then
-            for k, v in ni.table.pairs(profile.skinnables) do
-                if ni.player.distance(v) < 3 then
-                    if profile.cast(ni.spell.cast, profile.spells.skinning, v) then
-                        return true
-                    end
+            for k in ni.table.pairs(ni.player.skinnable_in_range(3)) do
+                if not ni.player.is_looting() and profile.cast(ni.spell.cast, ni.spells.skinning, k) then
+                    return true
                 end
             end
         end
@@ -173,8 +179,8 @@ end
 
 function profile.pause_rotation()
     if ni.player.mounted() or ni.player.is_dead_or_ghost() or not profile.incombat or ni.player.is_channeling() or
-        ni.player.is_casting() or ni.player.buff("drink") or ni.player.buff("food") then
-        --   ni.player.is_silenced() or ni.player.is_pacified() or ni.player.is_stunned() or ni.player.is_fleeing() then
+        ni.player.is_casting() or ni.player.buff("drink") or ni.player.buff("food") or ni.player.is_silenced() or
+        ni.player.is_pacified() then
         return true;
     end
 end
@@ -182,20 +188,20 @@ end
 function profile.auto_target()
     local target = "target"
     if profile.get_setting("target") then
-        if not ni.unit.exists("target") or ni.unit.is_dead_or_ghost("target") then
-            for k, v in ni.table.pairs(profile.enemies) do
-                target = v
+        if not ni.unit.exists(target) or ni.unit.is_dead_or_ghost(target) then
+            for k in ni.table.pairs(ni.player.enemies_in_combat_in_range(35)) do
+                target = k
                 break
             end
+            ni.player.target(target)
         end
-        ni.player.target(target)
     end
 end
 
 function profile.auto_attack()
-    if ni.unit.exists(profile.target) and not ni.spell.is_current(profile.spells.autoshot) or
-        ni.spell.is_current(profile.spells.autoattack) then
-        ni.player.target(profile.target)
-        return profile.cast(ni.player.start_attack, profile.target)
+    if ni.unit.exists("target") and (not ni.spell.is_current(ni.spells.auto_shot) or
+        (ni.player.in_melee("target") and not ni.spell.is_current(ni.spells.auto_attack))) then
+        ni.player.start_attack("target")
+        return true
     end
 end

@@ -6,6 +6,7 @@
 local ni = ...
 local profile = {}
 profile.name = "Beast Mastery"
+
 local load_functions = ni.backend.LoadFile(ni.backend.GetBaseFolder() .. "addon\\Rotations\\Misc\\helpers.lua")
 load_functions(ni, profile)
 
@@ -53,6 +54,12 @@ local ui = {
         key = "aspect"
     },
     {
+        type = "checkbox",
+        text = "Multi-Dot Serpent Sting",
+        enabled = true,
+        key = "serpent"
+    },
+    {
         type = "separator"
     },
     {
@@ -81,25 +88,6 @@ local ui = {
             }
         }
     }
-}
-
-profile.spells = {
-    skinning = select(1, ni.spell.info(8617)),
-    autoshot = select(1, ni.spell.info(75)),
-    raptorstrike = select(1, ni.spell.info(2973)),
-    serpentsting = select(1, ni.spell.info(1978)),
-    aspectofmonkey = select(1, ni.spell.info(13163)),
-    aspectofhawk = select(1, ni.spell.info(13165)),
-    aspectofdragonhawk = select(1, ni.spell.info(61847)),
-    aspectofviper = select(1, ni.spell.info(34074)),
-    arcaneshot = select(1, ni.spell.info(3044)),
-    huntersmark = select(1, ni.spell.info(1130)),
-    mendpet = select(1, ni.spell.info(136)),
-    feedpet = select(1, ni.spell.info(6991)),
-    multishot = select(1, ni.spell.info(2643)),
-    autoattack = select(1, ni.spell.info(6603)),
-    mongoosebite = select(1, ni.spell.info(1495)),
-    explosivetrap = select(1, ni.spell.info(13813))
 }
 
 local queue = {
@@ -141,7 +129,7 @@ local abilities = {
             if foodId ~= 0 and ni.item.is_present(foodId) and not ni.unit.buff("pet", 1539) then
                 local name = ni.item.info(foodId)
                 if (name ~= nil) then
-                    if profile.cast(ni.spell.cast, profile.spells.feedpet, "pet") then
+                    if profile.cast(ni.spell.cast, ni.spells.feed_pet, "pet") then
                         if profile.cast(ni.client.run_text, string.format("/use %s", name)) then
                             return true
                         end
@@ -151,8 +139,8 @@ local abilities = {
         end
     end,
     ["Mend Pet"] = function()
-        if ni.unit.hp("pet") < 70 and not ni.unit.buff("pet", profile.spells.mendpet) then
-            return profile.cast(ni.spell.cast, profile.spells.mendpet)
+        if ni.unit.hp("pet") < 70 and not ni.unit.buff("pet", ni.spells.mend_pet) then
+            return profile.cast(ni.spell.cast, ni.spells.mend_pet)
         end
     end,
     ["Pause Rotation"] = function()
@@ -162,7 +150,7 @@ local abilities = {
     end,
     ["Pet Logic"] = function()
         if ni.unit.exists("pet") then
-            if ni.pet.guid() == ni.unit.guid(ni.unit.target("pettarget")) or not profile.incombat or
+            if ni.unit.guid(ni.unit.target("pet")) ~= profile.pet.target or not profile.incombat or
                 not ni.unit.exists("pettarget") then
                 profile.pet.attacking = false
             end
@@ -171,17 +159,16 @@ local abilities = {
                 not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and not ni.unit.is_fleeing("pet") then
                 profile.cast(ni.pet.attack, "target")
                 profile.pet.attacking = true
-                return true
             end
             if profile.get_setting("pet_mode") == "Leveling" then
                 if not profile.pet.attacking then
-                    for k, v in ni.table.pairs(profile.enemies) do
-                        if ni.unit.guid(ni.unit.target(v)) ~= ni.pet.guid() and ni.unit.target(v) == "player" or
-                            ni.unit.guid(ni.unit.target(v)) == ni.unit.guid("player") or
-                            ni.unit.threat(ni.pet.guid(), v) < 3 and ni.unit.target(v) == "player" then
-                            if profile.cast(ni.pet.attack, v) then
+                    for k in ni.table.pairs(ni.player.enemies_in_combat_in_range(40)) do
+                        if ni.unit.target(k) == "player" or ni.unit.threat("pet", k) < 3 or
+                            (not ni.pet.is_attack_active() and profile.incombat) then
+                            if profile.cast(ni.pet.attack, k) then
                                 profile.pet.attacking = true
-                                return true
+                                profile.pet.target = k
+                                break
                             end
                         end
                     end
@@ -200,31 +187,39 @@ local abilities = {
         end
     end,
     ["Explosive Trap"] = function()
-        if ni.player.in_melee("target") and ni.player.is_facing("target") and #ni.unit.enemies_in_range("target", 10) >
-            1 then
-            if profile.cast(ni.spell.cast, profile.spells.explosivetrap) then
+        if ni.player.in_melee("target") and #ni.unit.enemies_in_combat_in_range("target", 10) > 1 and
+            ni.player.is_facing("target") then
+            if profile.cast(ni.spell.cast, ni.spells.explosive_trap) then
                 return true
             end
         end
     end,
     ["Raptor Strike"] = function()
-        if not ni.spell.is_current(profile.spells.raptorstrike) and ni.player.distance("target") < 3 then
-            if profile.cast(ni.spell.cast, profile.spells.raptorstrike, "target") then
+        if not ni.spell.is_current(ni.spells.raptor_strike) and ni.player.in_melee("target") then
+            if profile.cast(ni.spell.cast, ni.spells.raptor_strike, "target") then
                 return true
             end
         end
     end,
     ["Mongoose Bite"] = function()
-        if ni.player.distance("target") < 3 then
-            if profile.cast(ni.spell.cast, profile.spells.mongoosebite, "target") then
+        if ni.player.in_melee("target") then
+            if profile.cast(ni.spell.cast, ni.spells.mongoose_bite, "target") then
                 return true
             end
         end
     end,
     ["Serpent Sting"] = function()
-        for k, v in ni.table.pairs(profile.enemies) do
-            if not ni.unit.debuff(v, profile.spells.serpentsting) and ni.unit.hp(v) > 15 then
-                if profile.cast(ni.spell.cast, profile.spells.serpentsting, v) then
+        if profile.get_setting("serpent") then
+            for k in ni.table.pairs(ni.player.enemies_in_combat_in_range(35)) do
+                if not ni.unit.debuff(k, ni.spells.serpent_sting) and ni.unit.hp(k) > 15 then
+                    if profile.cast(ni.spell.cast, ni.spells.serpent_sting, k) then
+                        return true
+                    end
+                end
+            end
+        else
+            if not ni.unit.debuff("target", ni.spells.serpent_sting) and ni.unit.hp("target") > 15 then
+                if profile.cast(ni.spell.cast, ni.spells.serpent_sting, "target") then
                     return true
                 end
             end
@@ -232,42 +227,42 @@ local abilities = {
     end,
     ["Aspect Management"] = function()
         if profile.get_setting("aspect") then
-            if ni.player.level() < 10 and not ni.player.buff(profile.spells.aspectofmonkey) then
-                if profile.cast(ni.spell.cast, profile.spells.aspectofmonkey) then
+            if ni.player.level() < 10 and not ni.player.buff(ni.spells.aspect_of_the_monkey) then
+                if profile.cast(ni.spell.cast, ni.spells.aspect_of_the_monkey) then
                     return true
                 end
             end
-            --    if ni.spell.available(profile.spells.aspectofdragonhawk) then
-            --       if not (ni.player.buff(profile.spells.aspectofdragonhawk) or ni.player.buff(profile.spells.aspectofviper)) or
-            --           (ni.player.buff(profile.spells.aspectofviper) and ni.player.power() > 70) then
-            --           if profile.cast(ni.spell.cast, profile.spells.aspectofdragonhawk) then
+            --    if ni.spell.available(ni.spells.aspectofdragonhawk) then
+            --       if not (ni.player.buff(ni.spells.aspectofdragonhawk) or ni.player.buff(ni.spells.aspectofviper)) or
+            --           (ni.player.buff(ni.spells.aspectofviper) and ni.player.power() > 70) then
+            --           if profile.cast(ni.spell.cast, ni.spells.aspectofdragonhawk) then
             --               if profile.debug then
-            --                   print("[debug] Casting " .. profile.spells.aspectofdragonhawk)
+            --                   print("[debug] Casting " .. ni.spells.aspectofdragonhawk)
             --               end
             --               return true
             --           end
             --       end
             --   end
-            if not (ni.player.buff(profile.spells.aspectofhawk) or ni.player.buff(profile.spells.aspectofviper)) or
-                (ni.player.buff(profile.spells.aspectofviper) and ni.player.power_percent() > 70) then
-                if profile.cast(ni.spell.cast, profile.spells.aspectofhawk) then
+            if not (ni.player.buff(ni.spells.aspect_of_the_hawk) or ni.player.buff(ni.spells.aspect_of_the_viper)) or
+                (ni.player.buff(ni.spells.aspect_of_the_viper) and ni.player.power_percent() > 70) then
+                if profile.cast(ni.spell.cast, ni.spells.aspect_of_the_hawk) then
                     return true
                 end
             end
-            if not ni.player.buff(profile.spells.aspectofviper) and ni.player.power_percent() < 10 then
-                if profile.cast(ni.spell.cast, profile.spells.aspectofviper) then
+            if not ni.player.buff(ni.spells.aspect_of_the_viper) and ni.player.power_percent() < 10 then
+                if profile.cast(ni.spell.cast, ni.spells.aspect_of_the_viper) then
                     return true
                 end
             end
         end
     end,
     ["Arcane Shot"] = function()
-        if profile.cast(ni.spell.cast, profile.spells.arcaneshot, "target") then
+        if profile.cast(ni.spell.cast, ni.spells.arcane_shot, "target") then
             return true
         end
     end,
     ["Multi Shot"] = function()
-        if profile.cast(ni.spell.cast, profile.spells.multishot, "target") then
+        if profile.cast(ni.spell.cast, ni.spells.multishot, "target") then
             return true
         end
     end
