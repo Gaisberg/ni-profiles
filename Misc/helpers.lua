@@ -36,11 +36,16 @@ end
 
 function profile.cast(func, ...)
     local arg1, arg2 = ...
-    if func == ni.spell.cast then
+    if func == ni.spell.cast or func == ni.spell.cast_on or func == ni.spell.cast_at then
 
         local spell, target = ...
-        for k, v in ni.table.pairs(profile.blocked_spells) do
-            if spell == v.name then
+
+        if spell == 0 then
+            return false
+        end
+
+        for _, v in ni.table.pairs(profile.blocked_spells) do
+            if spell == v.id then
                 return false
             end
         end
@@ -48,21 +53,26 @@ function profile.cast(func, ...)
             return false
         end
 
-        if target and spell ~= ni.spells.skinning then
-            if not ni.spell.valid(spell, target, true, true) then
-                return false
-            end
+        if func == ni.spell.cast_at then
+            func(spell, target[1], target[2], target[3])
+            return true
         end
 
-        func(spell, target)
-        if profile.debug then
-            -- if target then
-            --     profile.casting_history:AddMessage("[DEBUG] Casting " .. spell .. " on " .. ni.unit.name(target))
-            -- else
-            --     profile.casting_history:AddMessage("[DEBUG] Casting " .. spell)
-            -- end
+        local valid_whitelist = {
+            34026
+        }
+
+        if target and spell ~= ni.spells.skinning then
+            if ni.spell.valid(spell, target, true, true) or ni.table.contains_value(valid_whitelist, spell) then
+                func(spell, target)
+                return true
+            end
+        else
+            func(spell)
+            return true
         end
-        return true
+
+        return false
     elseif func == ni.pet.attack then
         func(arg1, arg2)
         if profile.debug then
@@ -88,15 +98,10 @@ function profile.events(event, ...)
     --  elseif event == "PLAYER_REGEN_ENABLED" then
     --      profile.incombat = false;
     if event == "UNIT_SPELLCAST_SENT" and arg1 == "player" then
-        for k, v in ni.table.pairs(profile.spells) do
-            if v == arg2 then
-                ni.table.insert(profile.blocked_spells, {
-                    name = v,
-                    time = ni.client.get_time()
-                })
-                break
-            end
-        end
+        ni.table.insert(profile.blocked_spells, {
+            id = ni.backend.GetSpellID(arg2),
+            time = ni.client.get_time()
+        })
     end
     if event == "PET_ATTACK_START" then
         profile.pet.attacking = true
@@ -105,24 +110,24 @@ function profile.events(event, ...)
         profile.pet.attacking = false
     end
 
-   --  if event == "PLAYER_ENTERING_WORLD" then
-   --    --  Scan for our "PM" window
-   --    for i = 3, NUM_CHAT_WINDOWS do
-   --       --  Fix the ChatFrame.oldAlpha problem here
-   --       local cframe = _G["ChatFrame" .. i];
-   --       cframe.oldAlpha = cframe.oldAlpha or 0;
+    --  if event == "PLAYER_ENTERING_WORLD" then
+    --    --  Scan for our "PM" window
+    --    for i = 3, NUM_CHAT_WINDOWS do
+    --       --  Fix the ChatFrame.oldAlpha problem here
+    --       local cframe = _G["ChatFrame" .. i];
+    --       cframe.oldAlpha = cframe.oldAlpha or 0;
 
-   --       --  Check if this window is named "PM" and only has the two whisper types registered (order of the function returns doesn't matter)
-   --       if GetChatWindowInfo(i) == "History" then
-   --             --      If so, stop here
-   --             return;
-   --       end
-   --    end
+    --       --  Check if this window is named "PM" and only has the two whisper types registered (order of the function returns doesn't matter)
+    --       if GetChatWindowInfo(i) == "History" then
+    --             --      If so, stop here
+    --             return;
+    --       end
+    --    end
 
-   --    local HistoryFrame = FCF_OpenNewWindow("History"); --        There's no "PM" window, so we'll create one
-   --    ChatFrame_RemoveAllMessageGroups(HistoryFrame); --        Remove the default group registrations
-   --    profile.casting_history = HistoryFrame
-   -- end
+    --    local HistoryFrame = FCF_OpenNewWindow("History"); --        There's no "PM" window, so we'll create one
+    --    ChatFrame_RemoveAllMessageGroups(HistoryFrame); --        Remove the default group registrations
+    --    profile.casting_history = HistoryFrame
+    -- end
 end
 
 function profile.on_tick()
@@ -147,32 +152,8 @@ function profile.on_tick()
     end
 
     for k, v in ni.table.pairs(profile.blocked_spells) do
-        if ni.client.get_time() - v.time > 0.2 then
+        if ni.client.get_time() - v.time > 1 then
             profile.blocked_spells[k] = nil
-        end
-    end
-end
-
-function profile.looting()
-    if profile.get_setting("looting") then
-        if not profile.incombat and not ni.player.is_looting() and not ni.player.is_moving() then
-            for k in ni.table.pairs(ni.player.lootable_in_range(2)) do
-                if profile.cast(ni.player.interact, k) then
-                    return true
-                end
-            end
-        end
-    end
-end
-
-function profile.skinning()
-    if profile.get_setting("skinning") then
-        if not profile.incombat and not ni.player.is_moving() and not ni.player.is_casting() then
-            for k in ni.table.pairs(ni.player.skinnable_in_range(3)) do
-                if not ni.player.is_looting() and profile.cast(ni.spell.cast, ni.spells.skinning, k) then
-                    return true
-                end
-            end
         end
     end
 end

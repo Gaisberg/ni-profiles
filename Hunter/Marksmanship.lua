@@ -1,12 +1,11 @@
 --------------------------------
--- Beast Mastery
--- Version: 12340  (3.3.5a)
+-- Marksmanship
+-- Version: 12340 (3.3.5a)
 -- Author: Gaisberg
--- Not tested past level 60...
 --------------------------------
 local ni = ...
 local profile = {}
-profile.name = "Beast Mastery"
+profile.name = "Marksmanship"
 
 local load_functions = ni.backend.LoadFile(ni.backend.GetBaseFolder() .. "addon\\Rotations\\Misc\\helpers.lua")
 load_functions(ni, profile)
@@ -35,14 +34,42 @@ local ui = {
     {
         type = "label",
         text = "Class Settings"
-    },
-    {
-        type = "separator"
-    },
-    {
-        type = "label",
-        text = "Pet Settings"
     }
+    --  {
+    --      type = "separator"
+    --  },
+    --  {
+    --      type = "label",
+    --      text = "Pet Settings"
+    --  },
+    --  {
+    --      type = "checkbox",
+    --      text = "Mend Pet",
+    --      enabled = true,
+    --      key = "mend_pet_enabled"
+    --  },
+    --  {
+    --      type = "slider",
+    --      text = "",
+    --      value = 75,
+    --      min = 0,
+    --      max = 100,
+    --      key = "mend_pet_value",
+    --      same_line = true
+    --  },
+    --  {
+    --      type = "checkbox",
+    --      text = "Feed Pet with food (ID)",
+    --      enabled = true,
+    --      key = "feed_pet_enabled"
+    --  },
+    --  {
+    --      type = "input",
+    --      text = " ",
+    --      value = "0",
+    --      key = "feed_pet_value",
+    --      same_line = true
+    --  }
 }
 
 local queue = {
@@ -50,8 +77,9 @@ local queue = {
     "Pet Logic",
     "Pause Rotation",
     "Auto Target",
-    "Auto Attack",
     "Aspect Management",
+    "Auto Attack",
+    "Misdirection",
     "Multi Target",
     "Single Target"
 }
@@ -65,10 +93,15 @@ local abilities = {
             return true
         end
     end,
+    ["Auto Target"] = function()
+        if profile.auto_target() then
+            return true
+        end
+    end,
     ["Pet Logic"] = function()
         -- Feed Pet
         if not profile.incombat and ni.unit.exists("pet") and ni.pet.happiness() ~= 3 then
-            local foodId = 33454 -- hard coded until input has callback
+            local foodId = 8952 -- hard coded until input has callback
             if foodId ~= 0 and ni.item.is_present(foodId) and not ni.unit.buff("pet", 1539) then
                 local name = ni.item.info(foodId)
                 if (name ~= nil) then
@@ -84,44 +117,13 @@ local abilities = {
         if ni.unit.hp("pet") < 70 and not ni.unit.buff("pet", ni.spells.mend_pet) then -- hard coded until slider has callback
             return profile.cast(ni.spell.cast, ni.spells.mend_pet)
         end
-        if not profile.pause_rotation() then
-            if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
-                if ni.unit.target("pet") ~= ni.unit.target("player") and not ni.unit.is_silenced("pet") and
-                    not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and not ni.unit.is_fleeing("pet") then
-                    profile.cast(ni.pet.attack, "target")
-                end
-            end
-        end
-    end,
-    ["Auto Target"] = function()
-        if profile.auto_target() then
+        if profile.pause_rotation() then
             return true
         end
-    end,
-    ["Auto Attack"] = function()
-        if profile.auto_attack() then
-            return true
-        end
-    end,
-    ["Explosive Trap"] = function()
-        if ni.player.in_melee("target") and #ni.unit.enemies_in_range("target", 10) > 1 and
-            ni.player.is_facing("target") then
-            if profile.cast(ni.spell.cast, ni.spells.explosive_trap) then
-                return true
-            end
-        end
-    end,
-    ["Raptor Strike"] = function()
-        if not ni.spell.is_current(ni.spells.raptor_strike) and ni.player.in_melee("target") then
-            if profile.cast(ni.spell.cast, ni.spells.raptor_strike, "target") then
-                return true
-            end
-        end
-    end,
-    ["Mongoose Bite"] = function()
-        if ni.player.in_melee("target") then
-            if profile.cast(ni.spell.cast, ni.spells.mongoose_bite, "target") then
-                return true
+        if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
+            if ni.unit.target("pet") ~= ni.unit.target("player") and not ni.unit.is_silenced("pet") and
+                not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and not ni.unit.is_fleeing("pet") then
+                profile.cast(ni.pet.attack, "target")
             end
         end
     end,
@@ -154,25 +156,37 @@ local abilities = {
             end
         end
     end,
-    ["Arcane Shot"] = function()
-        if profile.cast(ni.spell.cast, ni.spells.arcane_shot, "target") then
+    ["Auto Attack"] = function()
+        if profile.auto_attack() then
             return true
         end
     end,
-
-    ["Multi Target"] = function()
-        local enemies = ni.unit.enemies_in_combat_in_range("target", 10)
-        if ni.table.length(enemies) > 1 then
-            -- Volley
-            if ni.table.length(enemies) >= 3 then
-                profile.cast(ni.spell.cast_at, ni.spells.volley, {
-                    ni.unit.best_damage_location("target", 35, 8, 3, ni.unit.is_in_combat, 3, 35)
-                })
+    ["Misdirection"] = function()
+        if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
+            if profile.cast(ni.spell.cast, ni.spells.misdirection, "pet") then
                 return true
             end
-            -- Multi-Shot
-            if profile.cast(ni.spell.cast, ni.spells.multishot, "target") then
-                return true
+        end
+    end,
+    ["Multi Target"] = function()
+        local enemies = ni.unit.enemies_in_range("target", 8)
+
+        if #enemies == 3 then
+            for k in enemies do
+                if ni.unit.hp(k) < 15 then
+                    return true
+                end
+            end
+        else
+            if #enemies >= 3 then
+                -- Volley
+                if not ni.player.is_casting() and not ni.player.is_moving() and not ni.player.is_channeling() and
+                    ni.profile.cast(ni.spell.cast_on, ni.spells.volley, "target") then
+                    return true
+                end
+                if ni.profile.cast(ni.spell.cast, ni.spells.multishot, "target") then
+                    return true
+                end
             end
         end
     end,
@@ -183,36 +197,31 @@ local abilities = {
                 return true
             end
         end
-        -- Bestial Wrath
-        if profile.cast(ni.spell.cast, ni.spells.bestial_wrath) then
-            return true
-        end
         -- Kill Shot
-        if profile.cast(ni.spell.cast, ni.spells.kill_shot) then
+        if ni.unit.hp("target") <= 20 and profile.cast(ni.spell.cast, ni.spells.kill_shot, "target") then
             return true
         end
         -- Serpent Sting
-        --   if profile.get_setting("serpent") then
-        for k in ni.table.pairs(ni.player.enemies_in_combat_in_range(35)) do
-            if not ni.unit.debuff(k, ni.spells.serpent_sting) and ni.unit.hp(k) > 15 then
-                if profile.cast(ni.spell.cast, ni.spells.serpent_sting, k) then
-                    return true
-                end
-            end
+        if not ni.unit.debuff("target", ni.spells.serpent_sting) and ni.unit.hp("target") > 15 and
+            profile.cast(ni.spell.cast, ni.spells.serpent_sting, "target") then
+            return true
         end
-        --   else
-        --       if not ni.unit.debuff("target", ni.spells.serpent_sting) and ni.unit.hp("target") > 15 then
-        --           if profile.cast(ni.spell.cast, ni.spells.serpent_sting, "target") then
-        --               return true
-        --           end
-        --       end
-        --   end
-
+        -- Chimera Shot
+        if profile.cast(ni.spell.cast, ni.spells.chimera_shot, "target") then
+            return true
+        end
+        -- Silencing Shot
+        if profile.cast(ni.spell.cast, ni.spells.silencing_shot, "target") then
+            return true
+        end
+        -- Aimed Shot
+        if profile.cast(ni.spell.cast, ni.spells.aimed_shot, "target") then
+            return true
+        end
         -- Steady Shot
         if not ni.player.is_moving() and profile.cast(ni.spell.cast, ni.spells.steady_shot, "target") then
             return true
         end
-        -- Arcane Shot
     end
 }
 
