@@ -40,7 +40,7 @@ function profile.cast(func, ...)
 
         local spell, target = ...
 
-        if spell == 0 then
+        if spell == 0 or not spell then
             return false
         end
 
@@ -131,7 +131,7 @@ function profile.events(event, ...)
 end
 
 function profile.on_tick()
-    ni.objects.update()
+   --  ni.objects.update()
     profile.debug = profile.get_setting("debug") or false
 
     profile.skinnables = {}
@@ -159,7 +159,7 @@ function profile.on_tick()
 end
 
 function profile.pause_rotation()
-    if ni.player.mounted() or ni.player.is_dead_or_ghost() or not profile.incombat or ni.player.is_channeling() or
+    if ni.player.is_mounted() or ni.player.is_dead_or_ghost() or not profile.incombat or ni.player.is_channeling() or
         ni.player.is_casting() or ni.player.buff("drink") or ni.player.buff("food") or ni.player.is_silenced() or
         ni.player.is_pacified() then
         return true;
