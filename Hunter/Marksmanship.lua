@@ -10,6 +10,8 @@ profile.name = "Marksmanship"
 local load_functions = ni.backend.LoadFile(ni.backend.GetBaseFolder() .. "addon\\Rotations\\Misc\\helpers.lua")
 load_functions(ni, profile)
 
+local pet_attacking = false
+
 local ui = {
     settingsfile = ni.player.guid() .. "_" .. profile.name .. ".json",
     {
@@ -26,7 +28,7 @@ local ui = {
         type = "checkbox",
         text = "Auto Target",
         enabled = false,
-        key = "target"
+        key = "auto_target"
     },
     {
         type = "separator"
@@ -34,6 +36,12 @@ local ui = {
     {
         type = "label",
         text = "Class Settings"
+    },
+    {
+        type = "checkbox",
+        text = "Pet Tank Mode",
+        enabled = false,
+        key = "pet_tank_mode"
     }
     --  {
     --      type = "separator"
@@ -100,7 +108,7 @@ local abilities = {
     end,
     ["Pet Logic"] = function()
         -- Feed Pet
-        if not profile.incombat and ni.unit.exists("pet") and ni.pet.happiness() ~= 3 then
+        if not profile.incombat and not ni.unit.is_dead_or_ghost("pet") and ni.unit.exists("pet") and ni.pet.happiness() ~= 3 then
             local foodId = 8952 -- hard coded until input has callback
             if foodId ~= 0 and ni.item.is_present(foodId) and not ni.unit.buff("pet", 1539) then
                 local name = ni.item.info(foodId)
@@ -114,16 +122,27 @@ local abilities = {
             end
         end
         -- Mend Pet
-        if ni.unit.hp("pet") < 70 and not ni.unit.buff("pet", ni.spells.mend_pet) then -- hard coded until slider has callback
+        if not ni.unit.is_dead_or_ghost("pet") and ni.unit.hp("pet") < 70 and not ni.unit.buff("pet", ni.spells.mend_pet) then -- hard coded until slider has callback
             return profile.cast(ni.spell.cast, ni.spells.mend_pet)
         end
-        if profile.pause_rotation() then
+        if not profile.incombat then
             return true
         end
-        if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
-            if ni.unit.target("pet") ~= ni.unit.target("player") and not ni.unit.is_silenced("pet") and
-                not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and not ni.unit.is_fleeing("pet") then
-                profile.cast(ni.pet.attack, "target")
+        if profile.get_setting("pet_tank_mode") then
+            if (ni.unit.exists(ni.unit.target("pet")) and ni.unit.threat("pet", ni.unit.target("pet")) >= 2) or not ni.unit.exists(ni.unit.target("pet")) or not ni.pet.is_attack_active() then
+                for k, v in ni.table.pairs(ni.player.enemies_in_combat_in_range(35)) do
+                    if ni.unit.threat("pet", v.guid) <= 1 then
+                        profile.cast(ni.pet.attack, v.guid)
+                        break
+                    end
+                end
+            end
+        else
+            if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
+                if ni.unit.target("pet") ~= ni.unit.target("player") and not ni.unit.is_silenced("pet") and
+                    not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and not ni.unit.is_fleeing("pet") then
+                    profile.cast(ni.pet.attack, profile.target)
+                end
             end
         end
     end,
@@ -144,9 +163,9 @@ local abilities = {
         --           end
         --       end
         --   end
-        if not (ni.player.buff(ni.spells.aspect_of_the_hawk) or ni.player.buff(ni.spells.aspect_of_the_viper)) or
+        if not (ni.player.buff(ni.spells.aspect_of_the_dragonhawk) or ni.player.buff(ni.spells.aspect_of_the_viper)) or
             (ni.player.buff(ni.spells.aspect_of_the_viper) and ni.player.power_percent() > 70) then
-            if profile.cast(ni.spell.cast, ni.spells.aspect_of_the_hawk) then
+            if profile.cast(ni.spell.cast, ni.spells.aspect_of_the_dragonhawk) then
                 return true
             end
         end
@@ -169,57 +188,54 @@ local abilities = {
         end
     end,
     ["Multi Target"] = function()
-        local enemies = ni.unit.enemies_in_range("target", 8)
-
-        if #enemies == 3 then
-            for k in enemies do
-                if ni.unit.hp(k) < 15 then
-                    return true
-                end
+        local enemies = ni.unit.enemies_in_combat_in_range(profile.target, 10)
+        if ni.table.length(enemies) > 1 then
+            -- Volley
+            if ni.table.length(enemies) >= 3 then
+                profile.cast(ni.spell.cast_at, ni.spells.volley, {
+                    ni.unit.best_damage_location(profile.target, 35, 8, 3, ni.unit.is_in_combat, 3, 35)
+                })
+                return true
             end
-        else
-            if #enemies >= 3 then
-                -- Volley
-                if not ni.player.is_casting() and not ni.player.is_moving() and not ni.player.is_channeling() and
-                    ni.profile.cast(ni.spell.cast_on, ni.spells.volley, "target") then
-                    return true
-                end
-                if ni.profile.cast(ni.spell.cast, ni.spells.multishot, "target") then
-                    return true
-                end
+            -- Multi-Shot
+            if profile.cast(ni.spell.cast, ni.spells.multishot, profile.target) then
+                return true
             end
         end
     end,
     ["Single Target"] = function()
         -- Kill Command
         if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
-            if profile.cast(ni.spell.cast, ni.spells.kill_command, "target") then
+            if profile.cast(ni.spell.cast, ni.spells.kill_command, profile.target) then
                 return true
             end
         end
         -- Kill Shot
-        if ni.unit.hp("target") <= 20 and profile.cast(ni.spell.cast, ni.spells.kill_shot, "target") then
+        if ni.unit.hp(profile.target) <= 20 and profile.cast(ni.spell.cast, ni.spells.kill_shot, profile.target) then
             return true
         end
         -- Serpent Sting
-        if not ni.unit.debuff("target", ni.spells.serpent_sting) and ni.unit.hp("target") > 15 and
-            profile.cast(ni.spell.cast, ni.spells.serpent_sting, "target") then
-            return true
+        for _, v in ni.table.pairs(ni.player.enemies_in_combat_in_range(35)) do
+            if not ni.unit.debuff(v.guid, ni.spells.serpent_sting) and ni.unit.hp(v.guid) > 15 then
+                if profile.cast(ni.spell.cast, ni.spells.serpent_sting, v.guid) then
+                    return true
+                end
+            end
         end
         -- Chimera Shot
-        if profile.cast(ni.spell.cast, ni.spells.chimera_shot, "target") then
+        if profile.cast(ni.spell.cast, ni.spells.chimera_shot, profile.target) then
             return true
         end
         -- Silencing Shot
-        if profile.cast(ni.spell.cast, ni.spells.silencing_shot, "target") then
+        if profile.cast(ni.spell.cast, ni.spells.silencing_shot, profile.target) then
             return true
         end
         -- Aimed Shot
-        if profile.cast(ni.spell.cast, ni.spells.aimed_shot, "target") then
+        if profile.cast(ni.spell.cast, ni.spells.aimed_shot, profile.target) then
             return true
         end
         -- Steady Shot
-        if not ni.player.is_moving() and profile.cast(ni.spell.cast, ni.spells.steady_shot, "target") then
+        if not ni.player.is_moving() and profile.cast(ni.spell.cast, ni.spells.steady_shot, profile.target) then
             return true
         end
     end

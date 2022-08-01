@@ -59,7 +59,8 @@ function profile.cast(func, ...)
         end
 
         local valid_whitelist = {
-            34026
+            34026,
+            34477
         }
 
         if target and spell ~= ni.spells.skinning then
@@ -93,10 +94,6 @@ end
 
 function profile.events(event, ...)
     local arg1, arg2 = ...
-    --  if event == "PLAYER_REGEN_DISABLED" then
-    --      profile.incombat = true;
-    --  elseif event == "PLAYER_REGEN_ENABLED" then
-    --      profile.incombat = false;
     if event == "UNIT_SPELLCAST_SENT" and arg1 == "player" then
         ni.table.insert(profile.blocked_spells, {
             id = ni.backend.GetSpellID(arg2),
@@ -109,29 +106,10 @@ function profile.events(event, ...)
     if event == "PET_ATTACK_STOP" then
         profile.pet.attacking = false
     end
-
-    --  if event == "PLAYER_ENTERING_WORLD" then
-    --    --  Scan for our "PM" window
-    --    for i = 3, NUM_CHAT_WINDOWS do
-    --       --  Fix the ChatFrame.oldAlpha problem here
-    --       local cframe = _G["ChatFrame" .. i];
-    --       cframe.oldAlpha = cframe.oldAlpha or 0;
-
-    --       --  Check if this window is named "PM" and only has the two whisper types registered (order of the function returns doesn't matter)
-    --       if GetChatWindowInfo(i) == "History" then
-    --             --      If so, stop here
-    --             return;
-    --       end
-    --    end
-
-    --    local HistoryFrame = FCF_OpenNewWindow("History"); --        There's no "PM" window, so we'll create one
-    --    ChatFrame_RemoveAllMessageGroups(HistoryFrame); --        Remove the default group registrations
-    --    profile.casting_history = HistoryFrame
-    -- end
 end
 
 function profile.on_tick()
-   --  ni.objects.update()
+    --  ni.objects.update()
     profile.debug = profile.get_setting("debug") or false
 
     profile.skinnables = {}
@@ -152,7 +130,7 @@ function profile.on_tick()
     end
 
     for k, v in ni.table.pairs(profile.blocked_spells) do
-        if ni.client.get_time() - v.time > 1 then
+        if ni.client.get_time() - v.time > 10 then
             profile.blocked_spells[k] = nil
         end
     end
@@ -168,15 +146,19 @@ end
 
 function profile.auto_target()
     local target = "target"
-    if profile.get_setting("target") then
+    if profile.get_setting("auto_target") then
         if not ni.unit.exists(target) or ni.unit.is_dead_or_ghost(target) then
-            for k in ni.table.pairs(ni.player.enemies_in_combat_in_range(35)) do
-                target = k
+            for _, v in ni.table.pairs(ni.player.enemies_in_combat_in_range(35)) do
+                target = v.guid
                 break
             end
-            -- ni.player.target(target)
+            ni.player.target(target)
         end
         profile.target = target
+    end
+    profile.target = target
+    if not ni.unit.exists(profile.target) then
+        return false
     end
 end
 

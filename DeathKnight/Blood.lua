@@ -125,7 +125,7 @@ local abilities = {
 	end,
    ["AutoAttack"] = function()
       if not ni.spell.is_current(ni.spells.auto_attack) and ni.player.in_melee(t) then
-         ni.spell.cast(spells.AutoAttack.id)
+         ni.spell.cast(ni.spells.auto_attack)
       end
    end,
    ["Presence"] = function ()
