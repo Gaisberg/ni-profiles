@@ -11,7 +11,7 @@ local load_functions = ni.backend.LoadFile(ni.backend.GetBaseFolder() .. "addon\
 load_functions(ni, profile)
 
 local ui = {
-    settingsfile = profile.name .. ".json",
+    settingsfile = ni.player.guid() .. "_" .. profile.name .. ".json",
     {
         type = "label",
         text = profile.name .. " - for 3.3.5a"

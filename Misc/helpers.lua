@@ -174,8 +174,9 @@ function profile.auto_target()
                 target = k
                 break
             end
-            ni.player.target(target)
+            -- ni.player.target(target)
         end
+        profile.target = target
     end
 end
 

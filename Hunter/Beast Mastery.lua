@@ -27,7 +27,7 @@ local ui = {
         type = "checkbox",
         text = "Auto Target",
         enabled = false,
-        key = "target"
+        key = profile.target
     },
     {
         type = "separator"
@@ -88,7 +88,7 @@ local abilities = {
             if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
                 if ni.unit.target("pet") ~= ni.unit.target("player") and not ni.unit.is_silenced("pet") and
                     not ni.unit.is_pacified("pet") and not ni.unit.is_stunned("pet") and not ni.unit.is_fleeing("pet") then
-                    profile.cast(ni.pet.attack, "target")
+                    profile.cast(ni.pet.attack, profile.target)
                 end
             end
         end
@@ -104,23 +104,23 @@ local abilities = {
         end
     end,
     ["Explosive Trap"] = function()
-        if ni.player.in_melee("target") and #ni.unit.enemies_in_range("target", 10) > 1 and
-            ni.player.is_facing("target") then
+        if ni.player.in_melee(profile.target) and #ni.unit.enemies_in_range(profile.target, 10) > 1 and
+            ni.player.is_facing(profile.target) then
             if profile.cast(ni.spell.cast, ni.spells.explosive_trap) then
                 return true
             end
         end
     end,
     ["Raptor Strike"] = function()
-        if not ni.spell.is_current(ni.spells.raptor_strike) and ni.player.in_melee("target") then
-            if profile.cast(ni.spell.cast, ni.spells.raptor_strike, "target") then
+        if not ni.spell.is_current(ni.spells.raptor_strike) and ni.player.in_melee(profile.target) then
+            if profile.cast(ni.spell.cast, ni.spells.raptor_strike, profile.target) then
                 return true
             end
         end
     end,
     ["Mongoose Bite"] = function()
-        if ni.player.in_melee("target") then
-            if profile.cast(ni.spell.cast, ni.spells.mongoose_bite, "target") then
+        if ni.player.in_melee(profile.target) then
+            if profile.cast(ni.spell.cast, ni.spells.mongoose_bite, profile.target) then
                 return true
             end
         end
@@ -155,23 +155,23 @@ local abilities = {
         end
     end,
     ["Arcane Shot"] = function()
-        if profile.cast(ni.spell.cast, ni.spells.arcane_shot, "target") then
+        if profile.cast(ni.spell.cast, ni.spells.arcane_shot, profile.target) then
             return true
         end
     end,
 
     ["Multi Target"] = function()
-        local enemies = ni.unit.enemies_in_combat_in_range("target", 10)
+        local enemies = ni.unit.enemies_in_combat_in_range(profile.target, 10)
         if ni.table.length(enemies) > 1 then
             -- Volley
             if ni.table.length(enemies) >= 3 then
                 profile.cast(ni.spell.cast_at, ni.spells.volley, {
-                    ni.unit.best_damage_location("target", 35, 8, 3, ni.unit.is_in_combat, 3, 35)
+                    ni.unit.best_damage_location(profile.target, 35, 8, 3, ni.unit.is_in_combat, 3, 35)
                 })
                 return true
             end
             -- Multi-Shot
-            if profile.cast(ni.spell.cast, ni.spells.multishot, "target") then
+            if profile.cast(ni.spell.cast, ni.spells.multishot, profile.target) then
                 return true
             end
         end
@@ -179,7 +179,7 @@ local abilities = {
     ["Single Target"] = function()
         -- Kill Command
         if ni.unit.exists("pet") and not ni.unit.is_dead_or_ghost("pet") then
-            if profile.cast(ni.spell.cast, ni.spells.kill_command, "target") then
+            if profile.cast(ni.spell.cast, ni.spells.kill_command, profile.target) then
                 return true
             end
         end
@@ -201,15 +201,15 @@ local abilities = {
             end
         end
         --   else
-        --       if not ni.unit.debuff("target", ni.spells.serpent_sting) and ni.unit.hp("target") > 15 then
-        --           if profile.cast(ni.spell.cast, ni.spells.serpent_sting, "target") then
+        --       if not ni.unit.debuff(profile.target, ni.spells.serpent_sting) and ni.unit.hp(profile.target) > 15 then
+        --           if profile.cast(ni.spell.cast, ni.spells.serpent_sting, profile.target) then
         --               return true
         --           end
         --       end
         --   end
 
         -- Steady Shot
-        if not ni.player.is_moving() and profile.cast(ni.spell.cast, ni.spells.steady_shot, "target") then
+        if not ni.player.is_moving() and profile.cast(ni.spell.cast, ni.spells.steady_shot, profile.target) then
             return true
         end
         -- Arcane Shot
